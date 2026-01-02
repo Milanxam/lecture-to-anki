@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.cursor/
+
+# Project specific
+temp/
+output/
+data/frames/
+data/screenshots/
+data/audio/
+
+# Video files (too large for git)
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+*.part
+
+# Generated Anki decks (optional - remove if you want to track them)
+# *.apkg
+
+# Logs
+*.log
+processing_log.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets (never commit!)
+.env.local
+config.local.yaml
+
