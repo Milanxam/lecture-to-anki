@@ -611,13 +611,14 @@ class LectureProcessor:
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / f"{self.lecture.output_name}.apkg"
             
-            # Create package with media
+            # Create package with media - filter out non-existent files
             package = genanki.Package(deck)
-            package.media_files = list(set(all_media_files))  # Deduplicate
+            existing_media = [f for f in set(all_media_files) if os.path.exists(f)]
+            package.media_files = existing_media
             package.write_to_file(str(output_path))
             
-            print(f"\n  ✓ Created deck: {output_path}")
-            print(f"  ✓ Total cards: {successful_cards}")
+            print(f"\n  [OK] Created deck: {output_path}")
+            print(f"  [OK] Total cards: {successful_cards}")
             
             return str(output_path), successful_cards
             
@@ -707,7 +708,7 @@ def process_batch(lectures: List[LectureConfig], config: AppConfig) -> Dict:
             results["successful"] += 1
             
         except Exception as e:
-            print(f"  ✗ Error processing {lecture.deck_name}: {e}")
+            print(f"  [ERROR] Error processing {lecture.deck_name}: {e}")
             results["lectures"].append({
                 "name": lecture.deck_name,
                 "status": "failed",
