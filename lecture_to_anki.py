@@ -434,6 +434,7 @@ def create_note(
     timestamp: str,
     full_transcript: str,
     lecture_name: str,
+    lecture_id: str,
     screenshot_path: Optional[str] = None,
     audio_path: Optional[str] = None
 ) -> Tuple[MediaNote, List[str]]:
@@ -442,16 +443,17 @@ def create_note(
     media_files = []
     media_html = ""
     
+    # Use lecture_id prefix to ensure unique filenames across lectures
     # Add screenshot reference
     if screenshot_path and os.path.exists(screenshot_path):
-        filename = os.path.basename(screenshot_path)
-        media_files.append(screenshot_path)
+        filename = f"{lecture_id}_slide_{slide_num}.png"
+        media_files.append((screenshot_path, filename))
         media_html += f'<br><img src="{filename}" style="max-width: 100%; margin-top: 12px;">'
     
     # Add audio reference
     if audio_path and os.path.exists(audio_path):
-        filename = os.path.basename(audio_path)
-        media_files.append(audio_path)
+        filename = f"{lecture_id}_slide_{slide_num}.mp3"
+        media_files.append((audio_path, filename))
         media_html += f'<br>[sound:{filename}]'
     
     # Highlight keywords
@@ -597,6 +599,7 @@ class LectureProcessor:
                         timestamp=timestamp,
                         full_transcript=text,
                         lecture_name=self.lecture.deck_name,
+                        lecture_id=self.lecture_id,
                         screenshot_path=screenshot_path,
                         audio_path=audio_path
                     )
@@ -611,11 +614,30 @@ class LectureProcessor:
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / f"{self.lecture.output_name}.apkg"
             
-            # Create package with media - filter out non-existent files
+            # Copy media files to a staging area and prepare for packaging
+            # Media files are tuples of (source_path, target_filename)
+            media_staging_dir = output_dir / f".media_{self.lecture_id}"
+            media_staging_dir.mkdir(parents=True, exist_ok=True)
+            
+            staged_media = []
+            seen_files = set()
+            for source_path, target_filename in all_media_files:
+                if target_filename in seen_files:
+                    continue
+                seen_files.add(target_filename)
+                
+                if os.path.exists(source_path):
+                    staged_path = media_staging_dir / target_filename
+                    shutil.copy2(source_path, staged_path)
+                    staged_media.append(str(staged_path))
+            
+            # Create package with staged media
             package = genanki.Package(deck)
-            existing_media = [f for f in set(all_media_files) if os.path.exists(f)]
-            package.media_files = existing_media
+            package.media_files = staged_media
             package.write_to_file(str(output_path))
+            
+            # Clean up staging directory
+            shutil.rmtree(media_staging_dir)
             
             print(f"\n  [OK] Created deck: {output_path}")
             print(f"  [OK] Total cards: {successful_cards}")
