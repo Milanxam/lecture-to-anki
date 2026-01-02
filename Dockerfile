@@ -1,9 +1,12 @@
 FROM python:3.11-slim
 
-# Install FFmpeg
+# Install FFmpeg and other dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -13,7 +16,7 @@ COPY requirements.txt .
 
 # Install Python dependencies (use headless opencv for Docker)
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y opencv-python && \
+    pip uninstall -y opencv-python || true && \
     pip install --no-cache-dir opencv-python-headless
 
 # Copy application code
@@ -25,6 +28,10 @@ RUN mkdir -p /app/lectures /app/output /app/temp
 
 # Default environment
 ENV PYTHONUNBUFFERED=1
+
+# Health check (for container orchestration)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import lecture_to_anki; print('OK')" || exit 1
 
 # Entrypoint
 ENTRYPOINT ["python", "lecture_to_anki.py"]
