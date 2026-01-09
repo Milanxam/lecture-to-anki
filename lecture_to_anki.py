@@ -708,14 +708,15 @@ def discover_lectures(input_dir: str) -> List[LectureConfig]:
     return lectures
 
 
-def process_batch(lectures: List[LectureConfig], config: AppConfig) -> Dict:
+def process_batch(lectures: List[LectureConfig], config: AppConfig, skip_existing: bool = True) -> Dict:
     """Process multiple lectures and generate decks"""
     results = {
         "started_at": datetime.now().isoformat(),
         "lectures": [],
         "total_cards": 0,
         "successful": 0,
-        "failed": 0
+        "failed": 0,
+        "skipped": 0
     }
     
     print(f"\n{'#'*60}")
@@ -725,14 +726,26 @@ def process_batch(lectures: List[LectureConfig], config: AppConfig) -> Dict:
     for i, lecture in enumerate(lectures, 1):
         print(f"\n[{i}/{len(lectures)}] {lecture.deck_name}")
         
+        # Check if output already exists
+        output_path = Path(config.output_dir) / f"{lecture.output_name}.apkg"
+        if skip_existing and output_path.exists():
+            print(f"  [SKIP] Already exists: {output_path}")
+            results["lectures"].append({
+                "name": lecture.deck_name,
+                "status": "skipped",
+                "output": str(output_path)
+            })
+            results["skipped"] += 1
+            continue
+        
         try:
             processor = LectureProcessor(lecture, config)
-            output_path, card_count = processor.process()
+            output_path_str, card_count = processor.process()
             
             results["lectures"].append({
                 "name": lecture.deck_name,
                 "status": "success",
-                "output": output_path,
+                "output": output_path_str,
                 "cards": card_count
             })
             results["total_cards"] += card_count
@@ -754,6 +767,7 @@ def process_batch(lectures: List[LectureConfig], config: AppConfig) -> Dict:
     print("BATCH COMPLETE")
     print(f"{'='*60}")
     print(f"Successful: {results['successful']}/{len(lectures)}")
+    print(f"Skipped (existing): {results['skipped']}/{len(lectures)}")
     print(f"Total cards generated: {results['total_cards']}")
     print(f"Output directory: {config.output_dir}")
     
