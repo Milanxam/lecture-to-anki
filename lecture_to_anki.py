@@ -230,8 +230,10 @@ def extract_audio(video_path: str, start: float, end: float, output_path: str) -
 # AI CARD GENERATION
 # ========================
 
-def call_poe_api(prompt: str, config: AppConfig) -> Optional[str]:
-    """Call Poe API for card generation"""
+def call_poe_api(prompt: str, config: AppConfig, max_retries: int = 3) -> Optional[str]:
+    """Call Poe API for card generation with retry logic"""
+    import time
+    
     headers = {
         "Authorization": f"Bearer {config.poe_api_key}",
         "Content-Type": "application/json"
@@ -244,19 +246,26 @@ def call_poe_api(prompt: str, config: AppConfig) -> Optional[str]:
         "temperature": config.temperature
     }
     
-    try:
-        response = requests.post(
-            "https://api.poe.com/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=60
-        )
-        response.raise_for_status()
-        result = response.json()
-        return result.get("choices", [{}])[0].get("message", {}).get("content", "")
-    except Exception as e:
-        print(f"    Error calling Poe API: {e}")
-        return None
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://api.poe.com/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=90
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 5  # 5, 10, 15 seconds
+                print(f"    API error (attempt {attempt + 1}/{max_retries}): {e}")
+                print(f"    Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                print(f"    Error calling Poe API after {max_retries} attempts: {e}")
+                return None
 
 
 def generate_cards_from_text(text: str, is_visual_slide: bool, config: AppConfig) -> Optional[str]:
