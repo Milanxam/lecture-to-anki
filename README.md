@@ -1,244 +1,86 @@
 # Lecture to Anki
 
-Automatically convert lecture videos with subtitles into Anki flashcard decks.
+Turn lecture **videos + VTT subtitles** into high-quality Anki `.apkg` decks, driven by a
+**single course-level exam context** file and SuperMemo-style card formulation.
 
-This tool processes lecture recordings, detects slide changes, extracts the spoken content, and uses AI to generate exam-style Q&A flashcards. Perfect for students who want to create study materials from recorded lectures.
+## Install
 
-## Features
-
-- **Batch Processing**: Process multiple lectures in one run (10-20+ hours of content)
-- **Slide Detection**: Automatically detects slide changes using computer vision (SSIM)
-- **AI Card Generation**: Uses Poe API (Claude-3.5-Sonnet) to create exam-style flashcards
-- **Media Attachments**: Each card includes screenshots and audio clips
-- **Keyword Highlighting**: Answer keywords are highlighted in the transcript
-- **Timestamps**: Each card shows the exact timestamp in the lecture
-- **Offline Deck Generation**: Creates `.apkg` files that can be imported into Anki
-
-## Requirements
-
-- Python 3.8+
-- FFmpeg (must be installed and in PATH)
-- Poe API key
-
-## Installation
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/YOUR_USERNAME/lecture-to-anki.git
+```powershell
+git clone https://github.com/milanxam/lecture-to-anki.git
 cd lecture-to-anki
-```
 
-### 2. Create virtual environment
-
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Install FFmpeg
+Also install **ffmpeg** (and `ffprobe`) on your PATH — used for screenshots and short audio clips.
 
-**Ubuntu/Debian:**
-```bash
-sudo apt update && sudo apt install ffmpeg
+Get a Poe API key at https://poe.com/api_key and set it:
+
+```powershell
+$env:POE_API_KEY = "your_key"
 ```
 
-**macOS:**
-```bash
-brew install ffmpeg
+## Course folder structure (input)
+
+Point `-i` at the **course folder**. Exam info lives once under `context/`; each week needs video + subtitles:
+
+```text
+My Course/
+├── context/
+│   ├── exam_context.txt          ← PRIMARY filter for what cards to create
+│   ├── exam_context.TEMPLATE.txt
+│   └── additional_context/       ← optional PDFs / notes
+├── 01 - 2026-02-20 - Week title/
+│   ├── video_720p.mp4
+│   └── subtitles_en-US.vtt
+└── 02 - ...
 ```
 
-**Windows:**
-Download from https://ffmpeg.org/download.html and add to PATH.
+Flat layout also works (`lecture01.mp4` + `lecture01.vtt` in one folder).
+
+`exam_context.txt` decides **whether** a fact becomes a card. Card wording follows
+SuperMemo’s twenty rules (`prompts/supermemo_formulating_knowledge.txt`): one fact per card,
+short answers, prefer cloze, avoid sets.
 
 ## Usage
 
-### Basic Usage
+```powershell
+# Full course
+python lecture_to_anki.py -i "C:\path\to\Course" -o .\output
 
-Place your lecture videos and subtitle files in a directory:
+# Auto-create missing exam_context.txt
+python lecture_to_anki.py -i "…\Course" -o .\output --auto-context
 
-```
-lectures/
-├── lecture01.mp4
-├── lecture01.vtt
-├── lecture02.mp4
-├── lecture02.vtt
-└── ...
-```
+# Include summaries of additional_context/
+python lecture_to_anki.py -i "…\Course" -o .\output --use-additional-context
 
-Run the processor:
-
-```bash
-python lecture_to_anki.py \
-    --input-dir ./lectures \
-    --output-dir ./output \
-    --api-key YOUR_POE_API_KEY
+# One week only / re-run
+python lecture_to_anki.py -i "…\Course" -o .\output --only-deck 3 --force
+python lecture_to_anki.py -i "…\Course" -o .\output --from-deck 2
 ```
 
-### Command Line Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--input-dir, -i` | Directory with video + VTT files | Required |
-| `--output-dir, -o` | Output directory for .apkg files | `./output` |
-| `--temp-dir, -t` | Temporary files directory | `./temp` |
-| `--api-key, -k` | Poe API key | `$POE_API_KEY` env var |
-| `--prompt-file, -p` | Custom prompt for card generation | `./prompts/baugeschichte_exam_prompt.txt` |
-| `--ssim-threshold` | Slide detection sensitivity (0-1) | `0.85` |
-
-### Environment Variables
-
-```bash
-export POE_API_KEY="your_api_key_here"
-```
-
-## File Naming Convention
-
-The script automatically pairs video and subtitle files:
-
-| Video File | Subtitle File Options |
-|------------|----------------------|
-| `lecture01.mp4` | `lecture01.vtt`, `lecture01_subtitles.vtt`, `lecture01_captions.vtt` |
+Import `.apkg` files from `output/<course>/` into Anki (**File → Import**).
 
 ## Output
 
-Each lecture generates:
-
-1. **`lecture_name.apkg`** - Anki deck file with all cards and media
-2. **`processing_log.json`** - Processing summary and statistics
-
-### Card Format
-
-**Front:**
-```
-[Folie 5] 00:12:34
-Woran erkennt man die Romanik?
+```text
+output/<course>/
+├── 01_….apkg
+├── analysis/          # per-lecture analysis PDF
+└── ocr/<lecture>/     # diagram frames + timestamps.txt
 ```
 
-**Back:**
-```
-Rundbogenfenster, massive Mauern, Würfelkapitelle
+## Models (defaults)
 
-[Screenshot from lecture]
-[Audio clip]
+| Role | Model | Flag |
+|------|--------|------|
+| Analysis + cards | Claude-Sonnet-4.6 | `--model` |
+| Summaries | GPT-5.2-Instant | `--model-fast` |
+| Creating exam_context | Claude-Opus-4.7 | `--model-powerful` |
 
-▶ Sprechtext (Folie 5)
-  "Die Romanik erkennt man an den typischen Rundbogenfenstern..."
-```
+## Related tools
 
-## VPS Deployment
-
-### Digital Ocean Setup
-
-1. Create a Droplet (recommended: 4GB RAM, 2 vCPUs)
-
-2. SSH into your server:
-```bash
-ssh root@your_server_ip
-```
-
-3. Install system dependencies:
-```bash
-apt update && apt install -y python3 python3-pip python3-venv ffmpeg git
-```
-
-4. Clone and setup:
-```bash
-git clone https://github.com/YOUR_USERNAME/lecture-to-anki.git
-cd lecture-to-anki
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-5. For headless servers, use opencv-python-headless:
-```bash
-pip uninstall opencv-python
-pip install opencv-python-headless
-```
-
-6. Upload your lectures:
-```bash
-scp -r ./lectures root@your_server_ip:/root/lecture-to-anki/lectures
-```
-
-7. Run in background with screen/tmux:
-```bash
-screen -S anki
-python lecture_to_anki.py -i ./lectures -o ./output -k YOUR_API_KEY
-# Ctrl+A, D to detach
-```
-
-8. Download results:
-```bash
-scp -r root@your_server_ip:/root/lecture-to-anki/output ./
-```
-
-### Running with Docker (Optional)
-
-```dockerfile
-FROM python:3.11-slim
-
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip uninstall -y opencv-python && pip install opencv-python-headless
-
-COPY . .
-
-ENTRYPOINT ["python", "lecture_to_anki.py"]
-```
-
-Build and run:
-```bash
-docker build -t lecture-to-anki .
-docker run -v $(pwd)/lectures:/app/lectures -v $(pwd)/output:/app/output \
-    -e POE_API_KEY=your_key lecture-to-anki -i /app/lectures -o /app/output
-```
-
-## Customizing the Prompt
-
-Edit `prompts/baugeschichte_exam_prompt.txt` to customize card generation for your subject.
-
-The default prompt is optimized for architectural history exams (Baugeschichte) and generates cards in German.
-
-## Processing Time Estimates
-
-| Lecture Length | Estimated Time | Cards Generated |
-|----------------|----------------|-----------------|
-| 1 hour | ~10-15 min | 50-100 cards |
-| 2 hours | ~20-30 min | 100-200 cards |
-| 10 hours | ~2-3 hours | 500-1000 cards |
-
-*Times depend on API response speed and slide density.*
-
-## Troubleshooting
-
-### "No subtitle file found"
-Ensure your VTT file has the same base name as the video file.
-
-### FFmpeg errors
-Make sure FFmpeg is installed and accessible: `ffmpeg -version`
-
-### API rate limits
-The script makes one API call per slide. For large batches, consider adding delays.
-
-### Memory issues on VPS
-Reduce batch size or use a larger instance. Frame extraction is memory-intensive.
-
-## License
-
-MIT License - see LICENSE file.
-
-## Contributing
-
-Pull requests welcome! Please open an issue first to discuss major changes.
-
+- [lecture-scraper](https://github.com/milanxam/lecture-scraper) — download ETH lecture videos + VTT
+- [anki-from-text](https://github.com/milanxam/anki-from-text) — decks from plain text / PDF

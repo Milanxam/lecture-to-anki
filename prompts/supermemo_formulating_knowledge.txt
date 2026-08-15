@@ -1,0 +1,65 @@
+SUPERMEMO FORMULATION RULES (binding for every card)
+====================================================
+Source: Piotr Wozniak — "Effective learning: Twenty rules of formulating knowledge"
+(SuperMemo). Apply these when writing Q/A. Rules 1–16 mainly mean: keep memories SIMPLE.
+
+Core (never violate):
+1) Do not learn if you do not understand — only create a card for a fact that is clear
+   from the material. Never invent or blur uncertain claims.
+2) Learn before you memorize — cards are atomic pieces of a coherent picture already
+   built by exam context / analysis / overview. Prefer basics and exam-critical facts first.
+3) Build upon the basics — include simple definition / mapping cards; do not jump only
+   to complex comparisons.
+4) MINIMUM INFORMATION PRINCIPLE (most important for formulation):
+   - ONE fact per card. One question → one short answer.
+   - Prefer answers of a few words to one short sentence. Never pack a paragraph of
+     unrelated facts into one answer (Dead Sea anti-pattern).
+   - If a topic has many facts, SPLIT into many cards (location, cause, name, year, etc.).
+5) Cloze deletion is encouraged when it keeps items atomic, e.g.
+   Q: Studio Mobil is a tool from … (city)
+   A: Sarajevo
+6) Prefer visual anchors when the material is visual (slide/diagram already attached
+   by the pipeline). Ask about one specific visual fact, not the whole image.
+7) Light mnemonics only if they genuinely disambiguate; never force silly mnemonics.
+8) For labeled diagrams, prefer occlusion / OCR export over cramming all labels into one Q.
+9) AVOID SETS — never ask "List all tools / all countries / all clusters" as an unordered
+   dump. Convert to ordered enumerations, small groups (≤3), or one-member questions.
+10) AVOID LONG ENUMERATIONS — if a short ordered list is needed, keep ≤3–5 items or
+    use overlapping cloze ("A … B … C" fill blanks). Prefer several tiny cards.
+11) Combat interference — when two tools/cities/terms are similar, make each question
+    unambiguous with a context cue (city name, cluster, ESG dimension) so they cannot
+    be confused.
+12) Optimize wording — shortest clear question that lights up exactly one memory.
+    Cut filler. Answers even shorter than questions when possible.
+13) Refer to other memories — use established terms (tool names, clusters, ESG) already
+    introduced; build links without restating whole essays.
+14) Personal examples: optional and rare for exam decks; skip unless it clarifies meaning.
+15) Emotional shock tactics: do not use for academic exam cards.
+16) Context cues — put a short prefix when helpful, e.g. "São Paulo — Governance:" or
+    "ESG:" so the brain is in the right frame before answering.
+17) Useful redundancy is OK — high-value facts may appear from two angles
+    (e.g. tool→city AND city→tool) as SEPARATE cards, each still atomic.
+18) Sources — lecture timestamp / lecture name is attached by the system; do not waste
+    the answer field on long citations.
+19) Date-stamp volatile figures only when the exam cares about the year.
+20) Prioritize — exam context decides importance; skip low-value trivia.
+
+Anti-patterns (reject / rewrite):
+- One card whose answer is a multi-sentence essay of several facts
+- "What are the characteristics of X?" with a laundry-list answer
+- Unordered "list all …" sets
+- Vague questions ("this slide", "as mentioned", "the tool")
+- Nearly identical questions that will interfere without distinguishing context
+
+Good pattern examples:
+Q: Where is the Dead Sea located?
+A: Border of Israel and Jordan
+
+Q: Kaleida closed in … (year)
+A: 1995
+
+Q: Sarajevo — which Governance tool?
+A: Non-aligned modernity
+
+Q: Which city does "Urban villages" belong to?
+A: Pearl River Delta (PRD)

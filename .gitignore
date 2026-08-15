@@ -1,50 +1,41 @@
+# Secrets / env
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
+*.egg-info/
+.venv/
 venv/
 env/
-.env
-*.egg-info/
-dist/
-build/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-.cursor/
-
-# Project specific
-temp/
+# Outputs & media (large / personal)
 output/
-data/frames/
-data/screenshots/
-data/audio/
-
-# Video files (too large for git)
+temp/
+*.apkg
 *.mp4
 *.mkv
 *.avi
 *.mov
 *.webm
 *.part
+*.mp3
+*.wav
 
-# Generated Anki decks (optional - remove if you want to track them)
-# *.apkg
-
-# Logs
+# Local / IDE
+.idea/
+.vscode/
 *.log
-processing_log.json
-
-# OS files
 .DS_Store
 Thumbs.db
 
-# Secrets (never commit!)
-.env.local
-config.local.yaml
-
+# Project-specific noise
+data/
+*.pdf
+!prompts/**
+IMPROVEMENT_NOTES.md
+README_ANKI_INTEGRATION.md
+run_regenerate_*.ps1
