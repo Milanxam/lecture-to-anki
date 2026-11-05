@@ -1,41 +1,24 @@
-# Secrets / env
+# Secrets
 .env
 .env.*
 !.env.example
 
 # Python
+venv/
+.venv/
 __pycache__/
 *.py[cod]
-*$py.class
 *.egg-info/
-.venv/
-venv/
-env/
 
-# Outputs & media (large / personal)
+# Generated decks, logs, and scratch media
 output/
 temp/
-*.apkg
+
+# Local lecture media (large, and not part of the tool)
 *.mp4
 *.mkv
 *.avi
 *.mov
 *.webm
-*.part
-*.mp3
-*.wav
-
-# Local / IDE
-.idea/
-.vscode/
-*.log
-.DS_Store
-Thumbs.db
-
-# Project-specific noise
+*.apkg
 data/
-*.pdf
-!prompts/**
-IMPROVEMENT_NOTES.md
-README_ANKI_INTEGRATION.md
-run_regenerate_*.ps1

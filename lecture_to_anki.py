@@ -44,6 +44,7 @@ import genanki
 CONTEXT_FILENAME = "exam_context.txt"
 CONTEXT_DIRNAME = "context"
 ADDITIONAL_CONTEXT_DIRNAME = "additional_context"
+LECTURE_INDEX_FILENAME = "lecture_index.json"
 
 
 @dataclass
@@ -343,24 +344,30 @@ def media_file_valid(path: str) -> bool:
 
 def extract_screenshot(video_path: str, timestamp: float, output_path: str) -> bool:
     """Extract a single screenshot from video"""
-    result = subprocess.run([
-        "ffmpeg", "-ss", str(timestamp),
-        "-i", video_path,
-        "-frames:v", "1",
-        output_path, "-y"
-    ], capture_output=True)
+    try:
+        result = subprocess.run([
+            "ffmpeg", "-ss", str(timestamp),
+            "-i", video_path,
+            "-frames:v", "1",
+            output_path, "-y"
+        ], capture_output=True)
+    except FileNotFoundError:
+        return False
     return result.returncode == 0 and media_file_valid(output_path)
 
 
 def extract_audio(video_path: str, start: float, end: float, output_path: str) -> bool:
     """Extract audio segment from video"""
-    result = subprocess.run([
-        "ffmpeg", "-ss", str(start),
-        "-to", str(end),
-        "-i", video_path,
-        "-q:a", "0", "-map", "a",
-        output_path, "-y"
-    ], capture_output=True)
+    try:
+        result = subprocess.run([
+            "ffmpeg", "-ss", str(start),
+            "-to", str(end),
+            "-i", video_path,
+            "-q:a", "0", "-map", "a",
+            output_path, "-y"
+        ], capture_output=True)
+    except FileNotFoundError:
+        return False
     return result.returncode == 0 and media_file_valid(output_path)
 
 
@@ -1402,6 +1409,96 @@ def validate_apkg_media(apkg_path: str) -> Tuple[bool, str]:
     return True, "OK"
 
 
+def count_apkg_notes(apkg_path: str) -> Optional[int]:
+    """Return the number of notes stored in an .apkg, or None if unreadable."""
+    try:
+        with zipfile.ZipFile(apkg_path) as archive:
+            db_data = archive.read("collection.anki2")
+    except (zipfile.BadZipFile, KeyError, OSError):
+        return None
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".anki2")
+    try:
+        tmp.write(db_data)
+        tmp.close()
+        conn = sqlite3.connect(tmp.name)
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM notes")
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
+def lecture_index_path(output_dir: str) -> Path:
+    return Path(output_dir) / LECTURE_INDEX_FILENAME
+
+
+def load_lecture_index(output_dir: str) -> Dict:
+    """Load the durable per-lecture index. Missing or corrupt files start empty."""
+    path = lecture_index_path(output_dir)
+    if not path.is_file():
+        return {"courses": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf8"))
+    except (OSError, json.JSONDecodeError):
+        return {"courses": {}}
+    if not isinstance(data, dict):
+        return {"courses": {}}
+    data.setdefault("courses", {})
+    return data
+
+
+def record_lecture_index(
+    output_dir: str,
+    lecture: LectureConfig,
+    status: str,
+    output_path: Path,
+    cards: Optional[int] = None,
+    error: Optional[str] = None,
+) -> None:
+    """
+    Remember one lecture so a later run can skip it.
+
+    Keyed by course name + lecture folder name. New lecture folders are absent
+    from the index and still get generated. A valid existing .apkg is what
+    actually skips regeneration; this file is the readable record of that.
+    """
+    index = load_lecture_index(output_dir)
+    courses = index.setdefault("courses", {})
+    course_key = lecture.course_name or "course"
+    course = courses.setdefault(course_key, {"input_dir": lecture.course_dir, "lectures": {}})
+    course["input_dir"] = lecture.course_dir
+    lectures = course.setdefault("lectures", {})
+    previous = lectures.get(lecture.deck_name, {})
+    entry = {
+        "status": status,
+        "output": str(output_path),
+        "output_name": lecture.output_name,
+        "lecture_dir": lecture.lecture_dir,
+        "updated_at": datetime.now().isoformat(),
+    }
+    if cards is None and isinstance(previous, dict) and previous.get("cards") is not None:
+        entry["cards"] = previous["cards"]
+    elif cards is not None:
+        entry["cards"] = cards
+    if error:
+        entry["error"] = error
+    lectures[lecture.deck_name] = entry
+
+    path = lecture_index_path(output_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding="utf8")
+
+
 def create_note(
     model: genanki.Model,
     question: str,
@@ -1960,13 +2057,18 @@ def process_batch(
         if skip_existing and output_path.exists():
             valid, message = validate_apkg_media(str(output_path))
             if valid:
-                print(f"  [SKIP] Already exists with valid media: {output_path}")
+                existing_cards = count_apkg_notes(str(output_path))
+                print(f"  [SKIP] Already indexed, deck exists: {output_path}")
                 results["lectures"].append({
                     "name": lecture.deck_name,
                     "status": "skipped",
-                    "output": str(output_path)
+                    "output": str(output_path),
+                    "cards": existing_cards,
                 })
                 results["skipped"] += 1
+                record_lecture_index(
+                    config.output_dir, lecture, "skipped", output_path, cards=existing_cards
+                )
                 continue
             print(f"  [REPROCESS] Existing deck invalid ({message})")
 
@@ -1982,6 +2084,13 @@ def process_batch(
             })
             results["total_cards"] += card_count
             results["successful"] += 1
+            record_lecture_index(
+                config.output_dir,
+                lecture,
+                "success",
+                Path(output_path_str),
+                cards=card_count,
+            )
             
         except Exception as e:
             print(f"  [ERROR] Error processing {lecture.deck_name}: {e}")
@@ -1991,6 +2100,13 @@ def process_batch(
                 "error": str(e)
             })
             results["failed"] += 1
+            record_lecture_index(
+                config.output_dir,
+                lecture,
+                "failed",
+                output_path,
+                error=str(e),
+            )
     
     results["completed_at"] = datetime.now().isoformat()
     
@@ -2008,6 +2124,7 @@ def process_batch(
     with open(log_path, "w", encoding="utf8") as f:
         json.dump(results, f, indent=2)
     print(f"Log saved: {log_path}")
+    print(f"Lecture index: {lecture_index_path(config.output_dir)}")
     
     return results
 

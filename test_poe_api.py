@@ -1,28 +1,26 @@
 import os
 import openai
 
-# Prefer environment variable; never commit real keys.
-POE_API_KEY = os.getenv("POE_API_KEY", "")
-
 
 def test_poe_api():
     """Test the Poe API using the OpenAI-compatible Responses API."""
-    if not POE_API_KEY:
-        print("[ERROR] Set POE_API_KEY environment variable first.")
+    api_key = os.getenv("POE_API_KEY")
+    if not api_key:
+        print("Error: set the POE_API_KEY environment variable.")
         return False
 
     print("Testing Poe API connection...")
 
     client = openai.OpenAI(
-        api_key=POE_API_KEY,
+        api_key=api_key,
         base_url="https://api.poe.com/v1",
     )
 
-    test_prompt = """You are creating Anki cards for Baugeschichte exams.
+    test_prompt = """You are creating Anki cards.
 
 Create 2 question-answer cards from this text:
 
-Test text: "Die Romanik ist ein Baustil des Mittelalters (etwa 1000-1200). Charakteristisch sind dicke Mauern, kleine Fenster und Rundbögen."
+Test text: "Water boils at 100 degrees Celsius at standard atmospheric pressure."
 
 Format strictly as:
 
